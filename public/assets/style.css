@@ -1,0 +1,63 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.container { width: 100%; max-width: 420px; }
+.card {
+    background: #1e293b;
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+h1 { font-size: 1.5rem; margin-bottom: 6px; }
+.subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 0.95rem; }
+.packages { margin-bottom: 28px; }
+.packages h3 { font-size: 1rem; margin-bottom: 12px; color: #38bdf8; }
+.packages ul { list-style: none; }
+.packages li {
+    background: #0f172a;
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+.packages li span { display: block; color: #94a3b8; font-size: 0.85rem; margin-top: 2px; }
+.hint { font-size: 0.8rem; color: #64748b; margin-top: 10px; }
+.voucher-form label { display: block; margin-bottom: 8px; font-size: 0.9rem; }
+.voucher-form input[type="text"] {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    text-align: center;
+    margin-bottom: 18px;
+}
+.voucher-form input:focus { outline: none; border-color: #38bdf8; }
+.voucher-form button {
+    width: 100%;
+    padding: 14px;
+    background: #38bdf8;
+    color: #0f172a;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.voucher-form button:hover { background: #7dd3fc; }
+.alert { padding: 12px; border-radius: 8px; margin-bottom: 18px; font-size: 0.9rem; }
+.alert.error { background: #7f1d1d; color: #fecaca; }
+.footer-note { margin-top: 24px; font-size: 0.75rem; color: #64748b; text-align: center; }
+.success { text-align: center; }
+.success a { color: #38bdf8; }
