@@ -11,7 +11,11 @@ return [
 
     'sites' => [
         'site1' => [   
+<<<<<<< HEAD
             'name'        => 'WIFI ZONE IRAFOULOUN(KENIEN)',
+=======
+            'name'        => 'WIFI ZONE IRAFOULOUN',
+>>>>>>> 38298ec (Add admin portal functionality with voucher management and authentication)
             'country'     => 'GN',
             'currency'    => 'GNF',
             'console_id'  => '84784898C4860000000008D72567000000000950012C0000000067CFD3F8:103891448', // depuis l’URL unifi.ui.com
@@ -33,7 +37,11 @@ return [
             'supportText' => 'Pour toute assistance, contactez nous au 00224 622 22 22 24',
         ],
         'site2' => [   
+<<<<<<< HEAD
             'name'        => 'WIFI ZONE IRAFOULOUN (KANIA)',
+=======
+            'name'        => 'WIFI ZONE IRAFOULOUN',
+>>>>>>> 38298ec (Add admin portal functionality with voucher management and authentication)
             'country'     => 'GN',
             'currency'    => 'GNF',
             'console_id'  => '84784894B92B0000000008BA23A30000000009318F3A0000000067A88527:964234772', // depuis l’URL unifi.ui.com
