@@ -25,3 +25,4 @@ CLAUDE*.md
 .claude/
 config/secrets.php
 .env*
+data/portal.db

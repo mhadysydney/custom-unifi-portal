@@ -17,7 +17,7 @@ body {
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 h1 { font-size: 1.5rem; margin-bottom: 6px; }
-.subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 0.95rem; }
+.subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 0.95rem;text-align: center; }
 .packages { margin-bottom: 28px; }
 .packages h3 { font-size: 1rem; margin-bottom: 12px; color: #38bdf8; }
 .packages ul { list-style: none; }

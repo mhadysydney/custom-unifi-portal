@@ -10,7 +10,7 @@
 <div class="container">
     <div class="card">
         <h1><?= htmlspecialchars($site['welcome']) ?></h1>
-        <p class="subtitle"><?= htmlspecialchars($site['name']) ?> (<?= htmlspecialchars($site['country']) ?>)</p>
+        <h2 class="subtitle"><?= htmlspecialchars($site['name']) ?> (<?= htmlspecialchars($site['country']) ?>)</h2>
 
         <?php if ($error === 'badcode'): ?>
             <div class="alert error">Code voucher invalide ou déjà utilisé.</div>
@@ -22,7 +22,7 @@
 
         <!-- Packages / Prix (dynamique par site) -->
         <div class="packages">
-            <h3>Nos formules</h3>
+            <h3>Nos forfaits</h3>
             <ul>
                 <?php foreach ($site['packages'] as $pkg): ?>
                     <li>
@@ -32,7 +32,7 @@
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <p class="hint">Achetez un code auprès du personnel ou au distributeur.</p>
+            
         </div>
 
         <!-- Formulaire style UniFi natif -->
@@ -55,9 +55,9 @@
             <button type="submit">Se connecter</button>
         </form>
 
-        <p class="footer-note">
-            Important : désactivez « Adresse Wi-Fi privée » / Private Address pour un accès stable.
-        </p>
+        <h3 class="footer-note">
+            <?= htmlspecialchars($site['supportText'] ?? 'Support technique') ?>
+        </h3>
     </div>
 </div>
 </body>
