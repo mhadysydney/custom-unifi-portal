@@ -67,14 +67,15 @@ return [
             // 'user'     => 'localadmin',
             // 'pass'     => 'password',
             'packages' => [
-                ['name' => '12 heure',  'minutes' => 720,   'price' => 3000,  'desc' => 'Accès 12h'],
-                ['name' => '1 jour',   'minutes' => 1440, 'price' => 5000,  'desc' => 'Accès 24h'],
-                ['name' => '7 jours',  'minutes' => 10080,'price' => 25000, 'desc' => 'Accès 1 semaine'],
-                ['name' => '1 mois',  'minutes' => 43200,'price' => 85000, 'desc' => 'Accès 1 mois'],
+                
+                ['name' => '1 day',   'minutes' => 1440, 'price' => 100,  'desc' => '24h unlimited access'],
+                ['name' => '2 days',  'minutes' => 2880,   'price' => 250,  'desc' => '2 days unlimited access'],
+                ['name' => '7 days',  'minutes' => 10080,'price' => 500, 'desc' => '1 week unlimited access'],
+                ['name' => '1 month',  'minutes' => 43200,'price' => 1000, 'desc' => '1 month unlimited access'],
             ],
-            'welcome' => 'Welcome sur notre portail',
-            'lang'    => 'fr',
-            'supportText' => 'Pour toute assistance, contactez nous au 00224 622 22 22 23',
+            'welcome' => 'Welcome to our portal',
+            'lang'    => 'en',
+            'supportText' => 'For any assistance, contact us at +231 77 731 8666',
         ],
     ],
 

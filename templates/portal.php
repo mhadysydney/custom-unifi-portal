@@ -9,8 +9,8 @@
 <body>
 <div class="container">
     <div class="card">
-        <h1><?= htmlspecialchars($site['welcome']) ?></h1>
-        <h2 class="subtitle"><?= htmlspecialchars($site['name']) ?> (<?= htmlspecialchars($site['country']) ?>)</h2>
+        <h1><?= htmlspecialchars($site['name']) ?></h1>
+        <h2 class="subtitle"><?= htmlspecialchars($site['welcome']) ?> (<?= htmlspecialchars($site['country']) ?>)</h2>
 
         <?php if ($error === 'badcode'): ?>
             <div class="alert error">Code voucher invalide ou déjà utilisé.</div>
