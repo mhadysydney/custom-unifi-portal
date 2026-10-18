@@ -23,7 +23,6 @@ $mac     = strtolower($_GET['id'] ?? $_GET['mac'] ?? '');
 $apMac   = $_GET['ap'] ?? null;
 $url     = $_GET['url'] ?? 'https://www.google.com';
 $ssid    = $_GET['ssid'] ?? '';
-$siteKey = $_GET['site'] ?? $config['default_site'];
 
 // Sécurité basique
 if (!isset($config['sites'][$siteKey])) {
