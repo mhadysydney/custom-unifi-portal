@@ -26,3 +26,9 @@ CLAUDE*.md
 config/secrets.php
 .env*
 data/portal.db
+
+.htaccess
+.user.ini
+.vscode/
+php.ini
+
