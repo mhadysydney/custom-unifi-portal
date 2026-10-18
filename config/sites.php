@@ -14,7 +14,7 @@ return [
             'name'        => 'WIFI ZONE IRAFOULOUN(KENIEN)',
             'country'     => 'GN',
             'currency'    => 'GNF',
-            'console_id'  => '84784898C4860000000008D72567000000000950012C0000000067CFD3F8:103891448', // depuis l’URL unifi.ui.com
+            'console_id'  => '84784894B92B0000000008BA23A30000000009318F3A0000000067A88527:964234772', // depuis l’URL unifi.ui.com
             'site_id'     => 'default',   // short name du site Network
             'method'      => 'site_manager', // ou 'direct'
             // Si method = direct :
@@ -38,7 +38,7 @@ return [
 
             'country'     => 'GN',
             'currency'    => 'GNF',
-            'console_id'  => '84784894B92B0000000008BA23A30000000009318F3A0000000067A88527:964234772', // depuis l’URL unifi.ui.com
+            'console_id'  => '84784898C4860000000008D72567000000000950012C0000000067CFD3F8:103891448', // depuis l’URL unifi.ui.com
             'site_id'     => 'default',   // short name du site Network
             'method'      => 'site_manager', // ou 'direct'
             // Si method = direct :
