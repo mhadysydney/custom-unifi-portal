@@ -8,6 +8,16 @@ use Portal\UniFiHelper;
 $config = require __DIR__ . '/../config/sites.php';
 $db = new Database();
 
+$host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+
+$hostMap = [
+    'portal-kenien.satgroupe.com' => 'site1',
+    'portal-knia.satgroupe.com'     => 'site2',
+    'portal-lbr.satgroupe.com'     => 'site3',
+];
+
+$siteKey = $hostMap[$host] ?? $config['default_site'];
+
 // Paramètres UniFi
 $mac     = strtolower($_GET['id'] ?? $_GET['mac'] ?? '');
 $apMac   = $_GET['ap'] ?? null;
