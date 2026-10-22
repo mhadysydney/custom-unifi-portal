@@ -7,10 +7,12 @@ class UniFiHelper
 {
     private array $config;
     private array $siteConfig;
+    private string $siteKey;
 
     public function __construct(array $globalConfig, string $siteKey)
     {
         $this->config = $globalConfig;
+        $this->siteKey = $siteKey;
         if (!isset($globalConfig['sites'][$siteKey])) {
             throw new \InvalidArgumentException("Site inconnu: $siteKey");
         }
@@ -18,19 +20,42 @@ class UniFiHelper
     }
 
     public function getClient(): Client
-    {
-        $sc = $this->siteConfig;
+{
+    $sc = $this->siteConfig;
+    $method = $sc['method'] ?? 'site_manager';
 
-        if (($sc['method'] ?? 'site_manager') === 'site_manager') {
+    $this->log('getClient start', [
+        'siteKey'    => $this->siteKey ?? null,
+        'method'     => $method,
+        'console_id' => $sc['console_id'] ?? null,
+        'site_id'    => $sc['site_id'] ?? 'default',
+        'has_sm_key' => !empty($this->config['site_manager_api_key']),
+        'has_api_key'=> !empty($sc['api_key']),
+        'has_user'   => !empty($sc['user']),
+        'url'        => $sc['url'] ?? null,
+    ]);
+
+    try {
+        if ($method === 'site_manager') {
+            if (empty($this->config['site_manager_api_key']) || empty($sc['console_id'])) {
+                throw new \RuntimeException('Site Manager: console_id ou site_manager_api_key manquant');
+            }
+
             $client = Client::connect_via_site_manager(
                 $sc['console_id'],
-                $this->config['site_manager_api_key'],
+                $sc['api_key'],
                 $sc['site_id'] ?? 'default'
             );
+
+            $this->log('getClient OK via site_manager');
             return $client;
         }
 
         // Méthode directe
+        if (empty($sc['url'])) {
+            throw new \RuntimeException('Direct: url manquante');
+        }
+
         $client = new Client(
             $sc['user'] ?? '',
             $sc['pass'] ?? '',
@@ -40,12 +65,40 @@ class UniFiHelper
 
         if (!empty($sc['api_key'])) {
             $client->set_api_key($sc['api_key']);
+            $this->log('getClient OK via api_key (direct)');
         } else {
-            $client->login();
+            if (empty($sc['user']) || empty($sc['pass'])) {
+                throw new \RuntimeException('Direct: ni api_key ni user/pass');
+            }
+            $login = $client->login();
+            $this->log('getClient login result', ['login' => $login]);
         }
 
         return $client;
+
+    } catch (\Throwable $e) {
+        $this->log('getClient FAIL', [
+            'error' => $e->getMessage(),
+            'class' => get_class($e),
+        ]);
+        throw $e;
     }
+}
+
+public function log(string $msg, array $ctx = []): void
+{
+    $line = date('c') . ' [' . ($this->siteKey ?? '-') . '] ' . $msg;
+    if ($ctx) {
+        $line .= ' ' . json_encode($ctx, JSON_UNESCAPED_UNICODE);
+    }
+    $line .= PHP_EOL;
+
+    $dir = dirname(__DIR__) . '/data';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    @file_put_contents($dir . '/portal_debug.log', $line, FILE_APPEND | LOCK_EX);
+}
 
     /**
      * Cherche un voucher par code et retourne ses infos
@@ -77,6 +130,7 @@ class UniFiHelper
      */
     public function authorize(string $mac, int $minutes, ?string $apMac = null): bool
     {
+        try{
         $client = $this->getClient();
         return (bool)$client->authorize_guest(
             strtolower($mac),
@@ -85,7 +139,14 @@ class UniFiHelper
             null, // down
             null, // bytes
             $apMac
-        );
+         );
+        }catch (\Throwable $e) {
+        $this->log('getClient FAIL', [
+            'error' => $e->getMessage(),
+            'class' => get_class($e),
+        ]);
+        throw $e;
+    }
     }
 
     public function getSiteConfig(): array

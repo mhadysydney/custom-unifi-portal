@@ -19,23 +19,21 @@ return [
             'method'      => 'site_manager', // ou 'direct'
             // Si method = direct :
             // 'url'      => 'https://IP_OU_HOSTNAME_UDR7',
-            // 'api_key'  => 'API_KEY_LOCALE',   // ou user/pass
+            'api_key'  => $secrets['site1_api_key'],   // ou user/pass
             // 'user'     => 'localadmin',
             // 'pass'     => 'password',
             'packages' => [
-                ['name' => '12 heure',  'minutes' => 720,   'price' => 3000,  'desc' => 'Accès 12h'],
-                ['name' => '1 jour',   'minutes' => 1440, 'price' => 5000,  'desc' => 'Accès 24h'],
-                ['name' => '7 jours',  'minutes' => 10080,'price' => 25000, 'desc' => 'Accès 1 semaine'],
-                ['name' => '1 mois',  'minutes' => 43200,'price' => 85000, 'desc' => 'Accès 1 mois'],
+                ['name' => '12 heure',  'minutes' => 720,   'price' => 3000,  'desc' => 'Accès illimité 12h'],
+                ['name' => '1 jour',   'minutes' => 1440, 'price' => 5000,  'desc' => 'Accès illimité 24h'],
+                ['name' => '7 jours',  'minutes' => 10080,'price' => 25000, 'desc' => 'Accès illimité 1 semaine'],
+                ['name' => '1 mois',  'minutes' => 43200,'price' => 85000, 'desc' => 'Accès illimité 1 mois'],
             ],
             'welcome' => 'Bienvenue sur notre portail',
             'lang'    => 'fr',
-            'supportText' => 'Pour toute assistance, contactez nous au 00224 622 22 22 24',
+            'supportText' => 'Pour toute assistance, contactez nous au (+224) 621 70 71 56/ 664-50-46-90',
         ],
         'site2' => [   
-
             'name'        => 'WIFI ZONE IRAFOULOUN (KANIA)',
-
             'country'     => 'GN',
             'currency'    => 'GNF',
             'console_id'  => '84784898C4860000000008D72567000000000950012C0000000067CFD3F8:103891448', // depuis l’URL unifi.ui.com
@@ -43,18 +41,18 @@ return [
             'method'      => 'site_manager', // ou 'direct'
             // Si method = direct :
             // 'url'      => 'https://IP_OU_HOSTNAME_UDR7',
-            // 'api_key'  => 'API_KEY_LOCALE',   // ou user/pass
+            'api_key'  => $secrets['site2_api_key'],   // ou user/pass
             // 'user'     => 'localadmin',
             // 'pass'     => 'password',
             'packages' => [
-                ['name' => '12 heure',  'minutes' => 720,   'price' => 3000,  'desc' => 'Accès 12h'],
-                ['name' => '1 jour',   'minutes' => 1440, 'price' => 5000,  'desc' => 'Accès 24h'],
-                ['name' => '7 jours',  'minutes' => 10080,'price' => 25000, 'desc' => 'Accès 1 semaine'],
-                ['name' => '1 mois',  'minutes' => 43200,'price' => 85000, 'desc' => 'Accès 1 mois'],
+                ['name' => '12 heure',  'minutes' => 720,   'price' => 3000,  'desc' => 'Accès illimité 12h'],
+                ['name' => '1 jour',   'minutes' => 1440, 'price' => 5000,  'desc' => 'Accès illimité 24h'],
+                ['name' => '7 jours',  'minutes' => 10080,'price' => 25000, 'desc' => 'Accès illimité 1 semaine'],
+                ['name' => '1 mois',  'minutes' => 43200,'price' => 85000, 'desc' => 'Accès illimité 1 mois'],
             ],
             'welcome' => 'Bienvenue sur notre portail',
             'lang'    => 'fr',
-            'supportText' => 'Pour toute assistance, contactez nous au 00224 622 22 22 22',
+            'supportText' => 'Pour toute assistance, contactez nous au (+224) 628-14-09-20/621-13-05-12',
         ],
         'site3' => [
             'name'        => 'BillosHome Wifi',
@@ -65,7 +63,7 @@ return [
             'method'      => 'site_manager', // ou 'direct'
             // Si method = direct :
             // 'url'      => 'https://IP_OU_HOSTNAME_UDR7',
-            // 'api_key'  => 'API_KEY_LOCALE',   // ou user/pass
+            'api_key'  => $secrets['site3_api_key'],   // ou user/pass
             // 'user'     => 'localadmin',
             // 'pass'     => 'password',
             'packages' => [

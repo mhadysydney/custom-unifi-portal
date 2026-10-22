@@ -13,7 +13,12 @@ if ($siteKey && $id && isset($config['sites'][$siteKey])) {
         $helper = new UniFiHelper($config, $siteKey);
         $helper->revokeVoucher($id);
     } catch (Exception $e) {
-        // optionnel : log
+        $helper->log('REVOKE VOUCHER ERROR', [
+            'error' => $e->getMessage(),
+            'class' => get_class($e),
+            'site'  => $siteKey,
+            'id'    => $id,
+        ]);
     }
 }
 

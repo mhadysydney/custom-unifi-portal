@@ -36,7 +36,7 @@
         </div>
 
         <!-- Formulaire style UniFi natif -->
-        <form method="post" action="auth.php" class="voucher-form">
+        <form method="post" action="/auth.php" class="voucher-form">
             <input type="hidden" name="mac" value="<?= htmlspecialchars($mac) ?>">
             <input type="hidden" name="ap" value="<?= htmlspecialchars($apMac ?? '') ?>">
             <input type="hidden" name="url" value="<?= htmlspecialchars($url) ?>">
@@ -46,13 +46,16 @@
             <input type="text"
                    id="voucher"
                    name="voucher"
-                   placeholder="XXXX-XXXX-XXXX"
+                   placeholder="XXXXX-XXXXX"
                    autocomplete="off"
                    autocapitalize="characters"
                    required
                    autofocus>
 
-            <button type="submit">Se connecter</button>
+            <button type="submit" class="btn" id="connectBtn">
+    <span class="spinner"></span>
+    <span class="btn-text">Se connecter</span>
+  </button>
         </form>
 
         <h3 class="footer-note">
@@ -61,4 +64,21 @@
     </div>
 </div>
 </body>
+<script>
+(function () {
+  const form = document.getElementById('voucherForm');
+  const btn  = document.getElementById('connectBtn');
+  if (!form || !btn) return;
+
+  form.addEventListener('submit', function (e) {
+    if (btn.disabled) {
+      e.preventDefault();
+      return;
+    }
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.querySelector('.btn-text').textContent = 'Validation…';
+  });
+})();
+</script>
 </html>

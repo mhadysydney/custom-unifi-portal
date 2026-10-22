@@ -21,7 +21,7 @@ $siteKey = $hostMap[$host] ?? $config['default_site'];
 // Paramètres UniFi
 $mac     = strtolower($_GET['id'] ?? $_GET['mac'] ?? '');
 $apMac   = $_GET['ap'] ?? null;
-$url     = $_GET['url'] ?? 'https://www.google.com';
+$url     = 'https://www.google.com';
 $ssid    = $_GET['ssid'] ?? '';
 
 // Sécurité basique
@@ -30,6 +30,7 @@ if (!isset($config['sites'][$siteKey])) {
 }
 
 $site = $config['sites'][$siteKey];
+$helper = new UniFiHelper($config, $siteKey);
 
 // === Gestion cookie / MAC rotation ===
 $token = CookieManager::get();
@@ -41,14 +42,22 @@ if ($token && $mac) {
         // MAC a changé → on ré-autorise la nouvelle
         if (strtolower($session['mac']) !== $mac) {
             try {
-                $helper = new UniFiHelper($config, $siteKey);
+                
                 $remaining = max(1, (int)ceil(($session['expires_at'] - time()) / 60));
                 if ($helper->authorize($mac, $remaining, $apMac)) {
                     $db->updateMac($token, $mac);
                     $autoAuthorized = true;
                 }
             } catch (Exception $e) {
-                // log si besoin
+                $helper->log('Index page AUTH ERROR (MAC rotation)', [
+                    'error' => $e->getMessage(),
+                    'class' => get_class($e),
+                    'site'  => $siteKey,
+                    'mac'   => $mac,
+                    'apMac' => $apMac,
+                    'url'   => $url,
+                    'token' => $token,
+                ]);
             }
         } else {
             // même MAC encore valide → on laisse passer
@@ -58,7 +67,7 @@ if ($token && $mac) {
 }
 
 if ($autoAuthorized) {
-    header('Location: success.php?url=' . urlencode($url));
+    header('Location: /success.php?url=' . urlencode($url));
     exit;
 }
 

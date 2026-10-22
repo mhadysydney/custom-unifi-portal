@@ -62,3 +62,14 @@ h1 { font-size: 1.5rem; margin-bottom: 6px; }
 .footer-note { margin-top: 24px; font-size: 0.75rem; color: #64748b; text-align: center; }
 .success { text-align: center; }
 .success a { color: #38bdf8; }
+
+.btn .spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(15,23,42,.25);
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+.btn.is-loading .spinner { display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }

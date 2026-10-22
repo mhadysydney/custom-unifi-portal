@@ -32,3 +32,4 @@ data/portal.db
 .vscode/
 php.ini
 
+data/portal_debug.log

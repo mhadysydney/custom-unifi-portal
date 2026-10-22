@@ -1,5 +1,5 @@
 <?php
-$url = $_GET['url'] ?? 'https://www.google.com';
+$url = 'https://www.google.com';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -7,7 +7,7 @@ $url = $_GET['url'] ?? 'https://www.google.com';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connecté</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="/assets/style.css">
     <meta http-equiv="refresh" content="2;url=<?= htmlspecialchars($url) ?>">
 </head>
 <body>
