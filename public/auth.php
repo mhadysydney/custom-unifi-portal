@@ -45,9 +45,53 @@ try {
 
     $minutes = (int)($voucher['duration'] ?? $voucher['time_limit'] ?? 60);
     if ($minutes < 1) $minutes = 60;
+    $quota = (int)($voucher['quota'] ?? 0);
+    $voucherId = (string)($voucher['_id'] ?? '');
+    $voucherCode = preg_replace('/\D/', '', (string)($voucher['code'] ?? $code));
 
-    if (!$helper->authorize($mac, $minutes, $apMac)) {
-        throw new Exception('Authorization failed');
+    $token = CookieManager::get();
+    $existingSession = $token ? $db->findByCookie($token) : null;
+    $existingCode = $existingSession
+        ? preg_replace('/\D/', '', (string)($existingSession['voucher_code'] ?? ''))
+        : '';
+    $existingSameVoucher = $existingSession
+        && $existingSession['site_key'] === $siteKey
+        && $existingCode === $voucherCode
+        && (int)$existingSession['expires_at'] > time();
+
+    if ($existingSameVoucher) {
+        $remaining = max(1, (int)ceil(((int)$existingSession['expires_at'] - time()) / 60));
+        if (!$helper->authorize($mac, $remaining, $apMac)) {
+            throw new Exception('Authorization failed');
+        }
+        $db->updateMac($token, $mac);
+        CookieManager::set($token);
+        header('Location: success.php?url=' . urlencode($url));
+        exit;
+    }
+
+    $reserved = $db->reserveVoucher(
+        $siteKey,
+        $voucherCode,
+        $mac,
+        $quota,
+        $apMac,
+        $voucherId ?: null,
+        (string)($voucher['note'] ?? ''),
+        $minutes
+    );
+    if (!$reserved) {
+        header('Location: index.php?site=' . urlencode($siteKey) . '&id=' . urlencode($mac) . '&ap=' . urlencode($apMac ?? '') . '&url=' . urlencode($url) . '&error=used');
+        exit;
+    }
+
+    try {
+        if (!$helper->authorize($mac, $minutes, $apMac)) {
+            throw new Exception('Authorization failed');
+        }
+    } catch (Throwable $e) {
+        $db->releaseVoucherReservation($siteKey, $voucherCode, $mac);
+        throw $e;
     }
 
     // Cookie anti-rotation

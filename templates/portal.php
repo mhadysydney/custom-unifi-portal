@@ -18,6 +18,8 @@
             <div class="alert error">Erreur serveur. Réessaie dans un instant.</div>
         <?php elseif ($error === 'invalid'): ?>
             <div class="alert error">Données manquantes.</div>
+        <?php elseif ($error === 'used'): ?>
+            <div class="alert error">Ce voucher a déjà été utilisé sur cet appareil ou a atteint son quota.</div>
         <?php endif; ?>
 
         <!-- Packages / Prix (dynamique par site) -->

@@ -39,10 +39,8 @@ $autoAuthorized = false;
 if ($token && $mac) {
     $session = $db->findByCookie($token);
     if ($session && $session['site_key'] === $siteKey && $session['expires_at'] > time()) {
-        // MAC a changé → on ré-autorise la nouvelle
         if (strtolower($session['mac']) !== $mac) {
             try {
-                
                 $remaining = max(1, (int)ceil(($session['expires_at'] - time()) / 60));
                 if ($helper->authorize($mac, $remaining, $apMac)) {
                     $db->updateMac($token, $mac);
@@ -52,15 +50,12 @@ if ($token && $mac) {
                 $helper->log('Index page AUTH ERROR (MAC rotation)', [
                     'error' => $e->getMessage(),
                     'class' => get_class($e),
-                    'site'  => $siteKey,
-                    'mac'   => $mac,
+                    'site' => $siteKey,
+                    'mac' => $mac,
                     'apMac' => $apMac,
-                    'url'   => $url,
-                    'token' => $token,
                 ]);
             }
         } else {
-            // même MAC encore valide → on laisse passer
             $autoAuthorized = true;
         }
     }

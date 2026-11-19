@@ -8,6 +8,11 @@ $config  = require __DIR__ . '/../../config/sites.php';
 $siteKey = $_POST['site'] ?? '';
 $id      = $_POST['id'] ?? '';
 
+if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    exit('Requête expirée. Actualisez la page.');
+}
+
 if ($siteKey && $id && isset($config['sites'][$siteKey])) {
     try {
         $helper = new UniFiHelper($config, $siteKey);

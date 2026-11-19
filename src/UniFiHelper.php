@@ -201,6 +201,21 @@ public function log(string $msg, array $ctx = []): void
         return (bool)$this->getClient()->revoke_voucher($voucherId);
     }
 
+    public function getGuestStats(string $mac): array
+    {
+        $mac = strtolower($mac);
+        $guests = $this->getClient()->list_guests(8760) ?: [];
+        foreach ($guests as $guest) {
+            $guestMac = strtolower((string)(is_object($guest)
+                ? ($guest->mac ?? '')
+                : ($guest['mac'] ?? '')));
+            if ($guestMac === $mac) {
+                return is_object($guest) ? (array)$guest : $guest;
+            }
+        }
+        return [];
+    }
+
     /**
      * Stats filtrées par période + statut
      *

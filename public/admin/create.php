@@ -12,12 +12,22 @@ $error   = null;
 $created = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
+        http_response_code(403);
+        exit('Requête expirée. Actualisez la page.');
+    }
+    $minutes = filter_input(INPUT_POST, 'minutes', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 525600]]);
+    $count = filter_input(INPUT_POST, 'count', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 250]]);
+    $quota = filter_input(INPUT_POST, 'quota', FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 100]]);
+    if ($minutes === false || $count === false || $quota === false) {
+        $error = 'Paramètres invalides.';
+    } else {
     try {
         
         $created = $helper->createVoucher(
-            (int)$_POST['minutes'],
-            max(1, (int)$_POST['count']),
-            (int)$_POST['quota'],
+            $minutes,
+            $count,
+            $quota,
             trim($_POST['note'] ?? ''),
             !empty($_POST['up']) ? (int)$_POST['up'] : null,
             !empty($_POST['down']) ? (int)$_POST['down'] : null,
@@ -40,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'megabytes' => !empty($_POST['megabytes']) ? (int)$_POST['megabytes'] : null,
         ]);
         $error = 'Erreur lors de la création du voucher : ' . $e->getMessage();
+    }
     }
 }
 ?>
@@ -66,19 +77,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php if (!empty($created)): ?>
     <div class="alert alert-ok">
       <strong><?= count($created) ?> voucher(s) créé(s)</strong>
-      <ul style="margin:10px 0 0;padding-left:18px">
+      <button type="button" class="btn no-print" onclick="window.print()" style="margin-top:10px">Imprimer / PDF</button>
+      <div class="voucher-print-grid">
         <?php foreach ($created as $v):
           $c = $v['code'] ?? '';
           if (strlen($c) === 10) $c = substr($c,0,5).'-'.substr($c,5);
         ?>
-          <li><code><?= htmlspecialchars($c) ?></code></li>
+          <div class="voucher-print-card">
+            <div>Wi-Fi voucher</div>
+            <strong><?= htmlspecialchars($c) ?></strong>
+            <div>Validité : <?= (int)($_POST['minutes'] ?? 0) ?> min</div>
+          </div>
+
+          <style>
+          .voucher-print-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+          .voucher-print-card { border: 2px dashed #334155; border-radius: 8px; background: #fff; color: #111827; padding: 18px 8px; text-align: center; break-inside: avoid; }
+          .voucher-print-card strong { display: block; font-size: 1.25rem; margin: 12px 0; }
+          @media print {
+            body { background: #fff !important; color: #111 !important; }
+            .no-print, .admin-card > h1, .admin-card > .subtitle, .admin-card > p, #createForm { display: none !important; }
+            .admin-card { box-shadow: none; background: #fff; }
+            .alert-ok { background: #fff; color: #111; }
+            .voucher-print-grid { grid-template-columns: repeat(4, 1fr); }
+            .voucher-print-card { break-inside: avoid; }
+          }
+          </style>
         <?php endforeach; ?>
-      </ul>
+      </div>
     </div>
   <?php endif; ?>
 
   <form method="post" class="form-grid" id="createForm">
     <input type="hidden" name="site" value="<?= htmlspecialchars($siteKey) ?>">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 
     <div class="form-row">
       <label for="minutes">Durée (minutes)</label>

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require __DIR__ . '/_auth.php';
 
 use Portal\UniFiHelper;
+use Portal\Database;
 
 $config  = require __DIR__ . '/../../config/sites.php';
 $siteKey = $_GET['site'] ?? array_key_first($config['sites']);
@@ -14,7 +15,12 @@ if (!isset($config['sites'][$siteKey])) {
 $from   = !empty($_GET['from']) ? strtotime($_GET['from'] . ' 00:00:00') : null;
 $to     = !empty($_GET['to'])   ? strtotime($_GET['to']   . ' 23:59:59') : null;
 $filter = $_GET['filter'] ?? 'all'; // all | used | remaining
+$search = trim($_GET['search'] ?? '');
+$usageFrom = !empty($_GET['usage_from']) ? strtotime($_GET['usage_from'] . ' 00:00:00') : null;
+$usageTo = !empty($_GET['usage_to']) ? strtotime($_GET['usage_to'] . ' 23:59:59') : null;
 $msg    = $_GET['msg'] ?? null;
+ $db = new Database();
+ $redemptionsByCode = $db->getRedemptionsBySite($siteKey);
 
 $error = null;
 $stats = [
@@ -26,12 +32,39 @@ $list = [];
 try {
     $helper = new UniFiHelper($config, $siteKey);
     $stats  = $helper->getVoucherStats($from, $to);
+    foreach ($stats['all'] as &$voucherRow) {
+        $voucherCode = preg_replace('/\D/', '', (string)($voucherRow['code'] ?? ''));
+        $localUsage = count(array_unique(array_column($redemptionsByCode[$voucherCode] ?? [], 'mac')));
+        $voucherRow['used'] = max((int)($voucherRow['used'] ?? 0), $localUsage);
+    }
+    unset($voucherRow);
+    $stats['used'] = array_values(array_filter($stats['all'], function ($voucherRow) {
+        $quota = (int)($voucherRow['quota'] ?? 0);
+        $used = (int)($voucherRow['used'] ?? 0);
+        return $quota > 0 && $used >= $quota;
+    }));
+    $stats['remaining'] = array_values(array_filter($stats['all'], function ($voucherRow) {
+        $quota = (int)($voucherRow['quota'] ?? 0);
+        $used = (int)($voucherRow['used'] ?? 0);
+        return $quota === 0 || $used < $quota;
+    }));
+    $stats['count_used'] = count($stats['used']);
+    $stats['count_remaining'] = count($stats['remaining']);
 
     $list = match ($filter) {
         'used'      => $stats['used'],
         'remaining' => $stats['remaining'],
         default     => $stats['all'],
     };
+    if ($search !== '') {
+        $searchDigits = preg_replace('/\D/', '', $search);
+        $list = array_values(array_filter($list, function ($v) use ($search, $searchDigits) {
+            $code = preg_replace('/\D/', '', (string)($v['code'] ?? ''));
+            $note = (string)($v['note'] ?? '');
+            return stripos($code, $searchDigits) !== false
+                || stripos($note, $search) !== false;
+        }));
+    }
 
     // Filtre date sur "all" (used/remaining déjà filtrés dans getVoucherStats)
     if ($filter === 'all' && ($from || $to)) {
@@ -266,6 +299,18 @@ function voucherRate(array $v, string $dir): string
                     <option value="used" <?= $filter === 'used' ? 'selected' : '' ?>>Utilisés</option>
                 </select>
             </div>
+            <div>
+                <label>Code ou note</label>
+                <input type="search" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Code ou note">
+            </div>
+            <div>
+                <label>Usage du</label>
+                <input type="date" name="usage_from" value="<?= htmlspecialchars($_GET['usage_from'] ?? '') ?>">
+            </div>
+            <div>
+                <label>Usage au</label>
+                <input type="date" name="usage_to" value="<?= htmlspecialchars($_GET['usage_to'] ?? '') ?>">
+            </div>
             <button type="submit">Filtrer</button>
         </form>
 
@@ -280,6 +325,8 @@ function voucherRate(array $v, string $dir): string
                         <th>Up</th>
                         <th>Down</th>
                         <th>Créé</th>
+                        <th>Premier usage</th>
+                        <th>Expiration</th>
                         <th>Note</th>
                         <th></th>
                     </tr>
@@ -287,7 +334,7 @@ function voucherRate(array $v, string $dir): string
                 <tbody>
                 <?php if (empty($list)): ?>
                     <tr>
-                        <td colspan="9"><?= $error ? '—' : 'Aucun voucher' ?></td>
+                        <td colspan="11"><?= $error ? '—' : 'Aucun voucher' ?></td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($list as $v):
@@ -296,14 +343,35 @@ function voucherRate(array $v, string $dir): string
                         $used   = (int)($v['used'] ?? 0);
                         $isUsed = ($quota > 0 && $used >= $quota);
                         $code   = formatVoucherCode((string)($v['code'] ?? ''));
+                        $codeDigits = preg_replace('/\D/', '', (string)($v['code'] ?? ''));
+                        $redemptions = $redemptionsByCode[$codeDigits] ?? [];
+                        $usageCount = count(array_unique(array_column($redemptions, 'mac')));
+                        $firstUse = $redemptions ? min(array_column($redemptions, 'authorized_at')) : null;
+                        $expiry = $redemptions ? max(array_column($redemptions, 'expires_at')) : null;
+                        if ($usageFrom || $usageTo) {
+                            $usageMatches = false;
+                            foreach ($redemptions as $redemption) {
+                                $timestamp = (int)$redemption['authorized_at'];
+                                if ((!$usageFrom || $timestamp >= $usageFrom)
+                                    && (!$usageTo || $timestamp <= $usageTo)) {
+                                    $usageMatches = true;
+                                    break;
+                                }
+                            }
+                            if (!$usageMatches) {
+                                continue;
+                            }
+                        }
+                        $displayUsed = max($used, $usageCount);
+                        $isUsed = $quota > 0 && ($displayUsed >= $quota);
                     ?>
                     <tr>
-                        <td><code><?= htmlspecialchars($code) ?></code></td>
+                        <td><a href="voucher.php?site=<?= urlencode($siteKey) ?>&code=<?= urlencode($codeDigits) ?>"><code><?= htmlspecialchars($code) ?></code></a></td>
                         <td><?= (int)($v['duration'] ?? 0) ?> min</td>
                         <td><?= $quota === 0 ? '∞' : $quota ?></td>
                         <td>
                             <span class="badge <?= $isUsed ? 'used' : 'ok' ?>">
-                                <?= $used ?><?= $quota > 0 ? '/' . $quota : '' ?>
+                                <?= $displayUsed ?><?= $quota > 0 ? '/' . $quota : '' ?>
                             </span>
                         </td>
                         <td><?= htmlspecialchars(voucherRate($v, 'up')) ?></td>
@@ -313,6 +381,8 @@ function voucherRate(array $v, string $dir): string
                                 ? date('d/m/Y H:i', (int)$v['create_time'])
                                 : '—' ?>
                         </td>
+                        <td><?= $firstUse ? date('d/m/Y H:i', (int)$firstUse) : '—' ?></td>
+                        <td><?= $expiry ? date('d/m/Y H:i', (int)$expiry) : '—' ?></td>
                         <td><?= htmlspecialchars((string)($v['note'] ?? '')) ?></td>
                         <td>
                             <?php if (!$isUsed && !empty($v['_id'])): ?>
@@ -320,6 +390,7 @@ function voucherRate(array $v, string $dir): string
                                   onsubmit="return confirm('Révoquer ce voucher ?');">
                                 <input type="hidden" name="site" value="<?= htmlspecialchars($siteKey) ?>">
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($v['_id']) ?>">
+                                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                                 <button type="submit" class="btn-danger">Révoquer</button>
                             </form>
                             <?php endif; ?>
