@@ -25,6 +25,17 @@ foreach ($vouchers as $row) {
         break;
     }
 }
+if ($voucher === null && $redemptions) {
+    $latestRedemption = $redemptions[0];
+    $voucher = [
+        'duration' => $latestRedemption['duration_min'] ?? 0,
+        'quota' => $latestRedemption['quota'] ?? 1,
+        'note' => $latestRedemption['note'] ?? '',
+        'qos_rate_max_up' => $latestRedemption['qos_rate_max_up'] ?? null,
+        'qos_rate_max_down' => $latestRedemption['qos_rate_max_down'] ?? null,
+        'data_limit_mb' => $latestRedemption['data_limit_mb'] ?? null,
+    ];
+}
 
 function bytesLabel($bytes): string
 {

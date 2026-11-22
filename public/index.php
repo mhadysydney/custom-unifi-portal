@@ -45,6 +45,12 @@ if ($token && $mac) {
                 if ($helper->authorize($mac, $remaining, $apMac)) {
                     $db->updateMac($token, $mac);
                     $autoAuthorized = true;
+                    $helper->log('SESSION MAC ROTATED', [
+                        'previous_mac' => strtolower((string)$session['mac']),
+                        'mac' => $mac,
+                        'remaining_minutes' => $remaining,
+                        'apMac' => $apMac,
+                    ]);
                 }
             } catch (Exception $e) {
                 $helper->log('Index page AUTH ERROR (MAC rotation)', [

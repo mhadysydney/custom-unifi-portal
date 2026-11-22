@@ -29,7 +29,7 @@ function printRateMbps($kilobitsPerSecond): ?string
 function printDataLimit(array $voucher, ?int $fallbackMegabytes, string $language): string
 {
     $limit = null;
-    foreach (['qos_usage_quota', 'megabytes'] as $key) {
+    foreach (['data_limit_mb', 'qos_usage_quota', 'megabytes'] as $key) {
         if (isset($voucher[$key]) && is_numeric($voucher[$key]) && (float)$voucher[$key] > 0) {
             $limit = (float)$voucher[$key];
             break;

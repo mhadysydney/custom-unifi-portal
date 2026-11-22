@@ -35,22 +35,56 @@ $list = [];
 try {
     $helper = new UniFiHelper($config, $siteKey);
     $stats  = $helper->getVoucherStats($from, $to);
+    $activeCodes = [];
     foreach ($stats['all'] as &$voucherRow) {
         $voucherCode = preg_replace('/\D/', '', (string)($voucherRow['code'] ?? ''));
+        $activeCodes[$voucherCode] = true;
         $localUsage = count(array_unique(array_column($redemptionsByCode[$voucherCode] ?? [], 'mac')));
         $voucherRow['used'] = max((int)($voucherRow['used'] ?? 0), $localUsage);
     }
     unset($voucherRow);
+
+    foreach ($redemptionsByCode as $voucherCode => $redemptions) {
+        if (isset($activeCodes[$voucherCode]) || !$redemptions) {
+            continue;
+        }
+
+        $firstUse = min(array_column($redemptions, 'authorized_at'));
+        $createdAt = (int)($redemptions[0]['voucher_created_at'] ?? 0);
+        $dateForFilter = $createdAt ?: (int)$firstUse;
+        if (($from && $dateForFilter < $from) || ($to && $dateForFilter > $to)) {
+            continue;
+        }
+
+        $latestRedemption = $redemptions[0];
+        $stats['all'][] = [
+            'code' => $voucherCode,
+            'used' => count(array_unique(array_column($redemptions, 'mac'))),
+            'quota' => (int)($latestRedemption['quota'] ?? 1),
+            'duration' => (int)($latestRedemption['duration_min'] ?? 0),
+            'note' => (string)($latestRedemption['note'] ?? ''),
+            'create_time' => $createdAt,
+            'qos_rate_max_up' => $latestRedemption['qos_rate_max_up'] ?? null,
+            'qos_rate_max_down' => $latestRedemption['qos_rate_max_down'] ?? null,
+            'data_limit_mb' => $latestRedemption['data_limit_mb'] ?? null,
+            '_id' => $latestRedemption['voucher_id'] ?? null,
+            'local_archived' => true,
+        ];
+    }
+
     $stats['used'] = array_values(array_filter($stats['all'], function ($voucherRow) {
         $quota = (int)($voucherRow['quota'] ?? 0);
         $used = (int)($voucherRow['used'] ?? 0);
-        return $quota > 0 && $used >= $quota;
+        return !empty($voucherRow['local_archived'])
+            || ($quota > 0 && $used >= $quota);
     }));
     $stats['remaining'] = array_values(array_filter($stats['all'], function ($voucherRow) {
         $quota = (int)($voucherRow['quota'] ?? 0);
         $used = (int)($voucherRow['used'] ?? 0);
-        return $quota === 0 || $used < $quota;
+        return empty($voucherRow['local_archived'])
+            && ($quota === 0 || $used < $quota);
     }));
+    $stats['count_all'] = count($stats['all']);
     $stats['count_used'] = count($stats['used']);
     $stats['count_remaining'] = count($stats['remaining']);
 
@@ -295,6 +329,8 @@ function voucherRate(array $v, string $dir): string
             <div class="alert alert-ok">Voucher(s) créé(s).</div>
         <?php elseif ($msg === 'revoked'): ?>
             <div class="alert alert-ok">Voucher révoqué.</div>
+        <?php elseif ($msg === 'revocation_failed'): ?>
+            <div class="alert alert-error">Échec de révocation. Vous pouvez réessayer depuis la ligne du voucher.</div>
         <?php endif; ?>
 
         <?php if ($error): ?>
@@ -367,6 +403,9 @@ function voucherRate(array $v, string $dir): string
                         <div><?= $isFrench ? 'Débit descendant' : 'Download speed' ?>: <?= htmlspecialchars(printRateLabel($downloadRate, $printLanguage)) ?></div>
                         <div><?= $isFrench ? 'Débit montant' : 'Upload speed' ?>: <?= htmlspecialchars(printRateLabel($uploadRate, $printLanguage)) ?></div>
                         <div><?= $isFrench ? 'Limite de données' : 'Data limit' ?>: <?= htmlspecialchars(printDataLimit($printVoucher, null, $printLanguage)) ?></div>
+                        <?php if (!empty($printVoucher['local_archived'])): ?>
+                            <div><?= $isFrench ? 'Révoqué / archivé' : 'Revoked / archived' ?></div>
+                        <?php endif; ?>
                        
                     </div>
                 <?php endforeach; ?>
@@ -423,6 +462,7 @@ function voucherRate(array $v, string $dir): string
                         }
                         $displayUsed = max($used, $usageCount);
                         $isUsed = $quota > 0 && ($displayUsed >= $quota);
+                        $revocationPending = ($redemptions[0]['revocation_status'] ?? '') === 'pending';
                     ?>
                     <tr>
                         <td><a href="voucher.php?site=<?= urlencode($siteKey) ?>&code=<?= urlencode($codeDigits) ?>"><code><?= htmlspecialchars($code) ?></code></a></td>
@@ -442,15 +482,29 @@ function voucherRate(array $v, string $dir): string
                         </td>
                         <td><?= $firstUse ? date('d/m/Y H:i', (int)$firstUse) : '—' ?></td>
                         <td><?= $expiry ? date('d/m/Y H:i', (int)$expiry) : '—' ?></td>
-                        <td><?= htmlspecialchars((string)($v['note'] ?? '')) ?></td>
                         <td>
-                            <?php if (!$isUsed && !empty($v['_id'])): ?>
+                            <?= htmlspecialchars((string)($v['note'] ?? '')) ?>
+                            <?php if ($revocationPending): ?>
+                                <span class="badge used">
+                                    <?= $isFrench ? 'Révocation à retenter' : 'Revocation retry' ?>
+                                </span>
+                            <?php elseif (!empty($v['local_archived'])): ?>
+                                <span class="badge used">
+                                    <?= $isFrench ? 'Archivé' : 'Archived' ?>
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ((!$isUsed || $revocationPending) && !empty($v['_id'])): ?>
                             <form method="post" action="revoke.php" style="display:inline"
                                   onsubmit="return confirm('Révoquer ce voucher ?');">
                                 <input type="hidden" name="site" value="<?= htmlspecialchars($siteKey) ?>">
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($v['_id']) ?>">
+                                <input type="hidden" name="code" value="<?= htmlspecialchars($codeDigits) ?>">
                                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
-                                <button type="submit" class="btn-danger">Révoquer</button>
+                                <button type="submit" class="btn-danger">
+                                    <?= $revocationPending ? 'Réessayer' : 'Révoquer' ?>
+                                </button>
                             </form>
                             <?php endif; ?>
                         </td>

@@ -62,11 +62,40 @@ class Database
             ap_mac TEXT,
             note TEXT,
             duration_min INTEGER,
+            quota INTEGER NOT NULL DEFAULT 1,
+            qos_rate_max_up INTEGER,
+            qos_rate_max_down INTEGER,
+            data_limit_mb INTEGER,
+            voucher_created_at INTEGER,
+            revoked_at INTEGER,
+            revocation_status TEXT NOT NULL DEFAULT 'not_required',
+            revocation_attempts INTEGER NOT NULL DEFAULT 0,
+            revocation_error TEXT,
             authorized_at INTEGER NOT NULL,
             expires_at INTEGER,
             UNIQUE(site_key, voucher_code, mac)
         )
     ");
+    $columns = array_column(
+        $this->pdo->query("PRAGMA table_info(voucher_redemptions)")->fetchAll(\PDO::FETCH_ASSOC),
+        'name'
+    );
+    $newColumns = [
+        'quota' => 'INTEGER NOT NULL DEFAULT 1',
+        'qos_rate_max_up' => 'INTEGER',
+        'qos_rate_max_down' => 'INTEGER',
+        'data_limit_mb' => 'INTEGER',
+        'voucher_created_at' => 'INTEGER',
+        'revoked_at' => 'INTEGER',
+        'revocation_status' => "TEXT NOT NULL DEFAULT 'not_required'",
+        'revocation_attempts' => 'INTEGER NOT NULL DEFAULT 0',
+        'revocation_error' => 'TEXT',
+    ];
+    foreach ($newColumns as $column => $definition) {
+        if (!in_array($column, $columns, true)) {
+            $this->pdo->exec("ALTER TABLE voucher_redemptions ADD COLUMN {$column} {$definition}");
+        }
+    }
     $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redemption_site_code ON voucher_redemptions(site_key, voucher_code)");
     $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_redemption_site_time ON voucher_redemptions(site_key, authorized_at)");
 
@@ -214,7 +243,11 @@ public function getRedemptionsForCode(string $siteKey, string $code): array
         ?string $apMac = null,
         ?string $voucherId = null,
         ?string $note = null,
-        ?int $durationMin = null
+        ?int $durationMin = null,
+        ?int $uploadKbps = null,
+        ?int $downloadKbps = null,
+        ?int $dataLimitMb = null,
+        ?int $voucherCreatedAt = null
     ): bool {
         $code = preg_replace('/\D/', '', $code);
         $mac = strtolower($mac);
@@ -249,9 +282,12 @@ public function getRedemptionsForCode(string $siteKey, string $code): array
             $expiresAt = $durationMin ? $now + ($durationMin * 60) : null;
             $insert = $this->pdo->prepare("
                 INSERT INTO voucher_redemptions
-                    (site_key, voucher_code, voucher_id, mac, ap_mac, note, duration_min, authorized_at, expires_at)
+                    (site_key, voucher_code, voucher_id, mac, ap_mac, note, duration_min, quota,
+                     qos_rate_max_up, qos_rate_max_down, data_limit_mb, voucher_created_at,
+                     authorized_at, expires_at)
                 VALUES
-                    (:site, :code, :vid, :mac, :ap, :note, :dur, :at, :exp)
+                    (:site, :code, :vid, :mac, :ap, :note, :dur, :quota,
+                     :up, :down, :data_limit, :created, :at, :exp)
             ");
             $insert->execute([
                 ':site' => $siteKey,
@@ -261,6 +297,11 @@ public function getRedemptionsForCode(string $siteKey, string $code): array
                 ':ap' => $apMac ? strtolower($apMac) : null,
                 ':note' => $note,
                 ':dur' => $durationMin,
+                ':quota' => $quota,
+                ':up' => $uploadKbps,
+                ':down' => $downloadKbps,
+                ':data_limit' => $dataLimitMb,
+                ':created' => $voucherCreatedAt,
                 ':at' => $now,
                 ':exp' => $expiresAt,
             ]);
@@ -284,6 +325,52 @@ public function getRedemptionsForCode(string $siteKey, string $code): array
             ':site' => $siteKey,
             ':code' => preg_replace('/\D/', '', $code),
             ':mac' => strtolower($mac),
+        ]);
+    }
+
+    public function markVoucherRevoked(string $siteKey, string $code): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE voucher_redemptions
+             SET revoked_at = :revoked_at,
+                 revocation_status = 'revoked',
+                 revocation_error = NULL
+             WHERE site_key = :site AND voucher_code = :code"
+        );
+        $stmt->execute([
+            ':revoked_at' => time(),
+            ':site' => $siteKey,
+            ':code' => preg_replace('/\D/', '', $code),
+        ]);
+    }
+
+    public function markVoucherRevocationPending(string $siteKey, string $code): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE voucher_redemptions
+             SET revocation_status = 'pending',
+                 revocation_attempts = revocation_attempts + 1,
+                 revocation_error = NULL
+             WHERE site_key = :site AND voucher_code = :code"
+        );
+        $stmt->execute([
+            ':site' => $siteKey,
+            ':code' => preg_replace('/\D/', '', $code),
+        ]);
+    }
+
+    public function markVoucherRevocationFailed(string $siteKey, string $code, string $error): void
+    {
+        $stmt = $this->pdo->prepare(
+            "UPDATE voucher_redemptions
+             SET revocation_status = 'pending',
+                 revocation_error = :error
+             WHERE site_key = :site AND voucher_code = :code"
+        );
+        $stmt->execute([
+            ':error' => substr($error, 0, 1000),
+            ':site' => $siteKey,
+            ':code' => preg_replace('/\D/', '', $code),
         ]);
     }
 }

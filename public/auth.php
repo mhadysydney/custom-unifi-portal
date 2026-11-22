@@ -30,15 +30,30 @@ $url       = $_POST['url'] ?? 'https://www.google.com';
 $code      = trim($_POST['voucher'] ?? '');
 
 if (!$mac || !$code || !isset($config['sites'][$siteKey])) {
+    $helper->log('VOUCHER AUTH REJECTED', [
+        'reason' => 'missing_mac_or_voucher',
+        'site' => $siteKey,
+        'mac' => $mac ?: null,
+        'apMac' => $apMac,
+    ]);
     header('Location: index.php?site=' . urlencode($siteKey) . '&id=' . urlencode($mac) . '&error=invalid');
     exit;
 }
 
 try {
-    
+    $helper->log('VOUCHER AUTH ATTEMPT', [
+        'mac' => $mac,
+        'apMac' => $apMac,
+    ]);
+
     $voucher = $helper->findVoucher($code);
 
     if (!$voucher) {
+        $helper->log('VOUCHER AUTH REJECTED', [
+            'reason' => 'invalid_or_exhausted_voucher',
+            'mac' => $mac,
+            'apMac' => $apMac,
+        ]);
         header('Location: index.php?site=' . urlencode($siteKey) . '&id=' . urlencode($mac) . '&ap=' . urlencode($apMac ?? '') . '&url=' . urlencode($url) . '&error=badcode');
         exit;
     }
@@ -48,6 +63,10 @@ try {
     $quota = (int)($voucher['quota'] ?? 0);
     $voucherId = (string)($voucher['_id'] ?? '');
     $voucherCode = preg_replace('/\D/', '', (string)($voucher['code'] ?? $code));
+    $uploadKbps = (int)($voucher['qos_rate_max_up'] ?? $voucher['up'] ?? $voucher['rate_max_up'] ?? 0);
+    $downloadKbps = (int)($voucher['qos_rate_max_down'] ?? $voucher['down'] ?? $voucher['rate_max_down'] ?? 0);
+    $dataLimitMb = (int)($voucher['megabytes'] ?? $voucher['qos_usage_quota'] ?? 0);
+    $voucherCreatedAt = (int)($voucher['create_time'] ?? 0);
 
     $token = CookieManager::get();
     $existingSession = $token ? $db->findByCookie($token) : null;
@@ -66,6 +85,12 @@ try {
         }
         $db->updateMac($token, $mac);
         CookieManager::set($token);
+        $helper->log('VOUCHER SESSION REAUTHORIZED', [
+            'mac' => $mac,
+            'previous_mac' => strtolower((string)$existingSession['mac']),
+            'remaining_minutes' => $remaining,
+            'apMac' => $apMac,
+        ]);
         header('Location: success.php?url=' . urlencode($url));
         exit;
     }
@@ -78,9 +103,18 @@ try {
         $apMac,
         $voucherId ?: null,
         (string)($voucher['note'] ?? ''),
-        $minutes
+        $minutes,
+        $uploadKbps > 0 ? $uploadKbps : null,
+        $downloadKbps > 0 ? $downloadKbps : null,
+        $dataLimitMb > 0 ? $dataLimitMb : null,
+        $voucherCreatedAt > 0 ? $voucherCreatedAt : null
     );
     if (!$reserved) {
+        $helper->log('VOUCHER AUTH REJECTED', [
+            'reason' => 'quota_exhausted_or_device_already_used',
+            'mac' => $mac,
+            'apMac' => $apMac,
+        ]);
         header('Location: index.php?site=' . urlencode($siteKey) . '&id=' . urlencode($mac) . '&ap=' . urlencode($apMac ?? '') . '&url=' . urlencode($url) . '&error=used');
         exit;
     }
@@ -98,6 +132,78 @@ try {
     $token = CookieManager::generateToken();
     CookieManager::set($token);
     $db->saveSession($siteKey, $mac, $code, $minutes, $token);
+    $helper->log('VOUCHER AUTHORIZED', [
+        'mac' => $mac,
+        'apMac' => $apMac,
+        'duration_minutes' => $minutes,
+        'quota' => $quota,
+    ]);
+
+    $usedCount = (int)($voucher['used'] ?? 0);
+    try {
+        $redemptions = $db->getRedemptionsForCode($siteKey, $voucherCode);
+        $localUsed = count(array_unique(array_column($redemptions, 'mac')));
+        $usedCount = max($usedCount, $localUsed);
+    } catch (Throwable $e) {
+        $helper->log('VOUCHER QUOTA CHECK FAILED', [
+            'error' => $e->getMessage(),
+            'class' => get_class($e),
+            'mac' => $mac,
+        ]);
+    }
+    if ($quota > 0 && $usedCount >= $quota) {
+        if ($voucherId === '') {
+            $helper->log('VOUCHER REVOKE SKIPPED', [
+                'reason' => 'missing_voucher_id',
+                'mac' => $mac,
+                'used' => $usedCount,
+                'quota' => $quota,
+            ]);
+        } else {
+            try {
+                $db->markVoucherRevocationPending($siteKey, $voucherCode);
+                if ($helper->revokeVoucher($voucherId)) {
+                    try {
+                        $db->markVoucherRevoked($siteKey, $voucherCode);
+                    } catch (Throwable $e) {
+                        $helper->log('VOUCHER REVOKED BUT LOCAL STATUS SAVE FAILED', [
+                            'error' => $e->getMessage(),
+                            'mac' => $mac,
+                        ]);
+                    }
+                    $helper->log('VOUCHER REVOKED AFTER QUOTA REACHED', [
+                        'mac' => $mac,
+                        'used' => $usedCount,
+                        'quota' => $quota,
+                    ]);
+                } else {
+                    $db->markVoucherRevocationFailed($siteKey, $voucherCode, 'UniFi returned false');
+                    $helper->log('VOUCHER REVOKE FAILED', [
+                        'reason' => 'unifi_returned_false',
+                        'mac' => $mac,
+                        'used' => $usedCount,
+                        'quota' => $quota,
+                    ]);
+                }
+            } catch (Throwable $e) {
+                try {
+                    $db->markVoucherRevocationFailed($siteKey, $voucherCode, $e->getMessage());
+                } catch (Throwable $dbError) {
+                    $helper->log('VOUCHER REVOKE FAILURE STATUS SAVE FAILED', [
+                        'error' => $dbError->getMessage(),
+                        'mac' => $mac,
+                    ]);
+                }
+                $helper->log('VOUCHER REVOKE FAILED', [
+                    'error' => $e->getMessage(),
+                    'class' => get_class($e),
+                    'mac' => $mac,
+                    'used' => $usedCount,
+                    'quota' => $quota,
+                ]);
+            }
+        }
+    }
 
     header('Location: success.php?url=' . urlencode($url));
     exit;
