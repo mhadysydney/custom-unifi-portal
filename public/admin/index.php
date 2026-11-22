@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 require __DIR__ . '/_auth.php';
+require_once __DIR__ . '/_print_helpers.php';
 
 use Portal\UniFiHelper;
 use Portal\Database;
@@ -11,6 +12,8 @@ $siteKey = $_GET['site'] ?? array_key_first($config['sites']);
 if (!isset($config['sites'][$siteKey])) {
     $siteKey = array_key_first($config['sites']);
 }
+$printLanguage = $config['sites'][$siteKey]['lang'] ?? 'fr';
+$isFrench = strtolower(substr($printLanguage, 0, 2)) === 'fr';
 
 $from   = !empty($_GET['from']) ? strtotime($_GET['from'] . ' 00:00:00') : null;
 $to     = !empty($_GET['to'])   ? strtotime($_GET['to']   . ' 23:59:59') : null;
@@ -236,8 +239,39 @@ function voucherRate(array $v, string $dir): string
         }
         .btn-danger:hover { background: #dc2626; }
 
+        .print-grid { display: none; }
+        .print-card {
+            border: 2px dashed #334155;
+            border-radius: 8px;
+            background: #fff;
+            color: #111827;
+            padding: 15px 5px;
+            text-align: center;
+            break-inside: avoid;
+            width: 250px;
+        }
+        .print-card strong {
+            display: block;
+            font-size: 1.25rem;
+            margin: 12px 0;
+        }
+        .print-card > div:first-child {
+            color: #666;
+            text-decoration: underline;
+        }
+
         @media (max-width: 600px) {
             .stats { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body { background: #fff !important; color: #111 !important; }
+            .admin-nav, .filters, .stats, .table-wrap, .alert, h1, .no-print { display: none !important; }
+            .card { background: #fff; box-shadow: none; padding: 0; }
+            .print-grid {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+            }
         }
     </style>
 </head>
@@ -313,6 +347,31 @@ function voucherRate(array $v, string $dir): string
             </div>
             <button type="submit">Filtrer</button>
         </form>
+        <?php if (!empty($list)): ?>
+            <button type="button" class="btn no-print" onclick="window.print()" style="margin-bottom:16px;padding: 12px 18px;background: #38bdf8;border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;">Imprimer les vouchers / PDF</button>
+            <div class="print-grid">
+                <?php foreach ($list as $printVoucher):
+                    $printVoucher = (array)$printVoucher;
+                    $printCode = preg_replace('/\D/', '', (string)($printVoucher['code'] ?? ''));
+                    if (strlen($printCode) === 10) {
+                        $printCode = substr($printCode, 0, 5) . '-' . substr($printCode, 5);
+                    }
+                    [$uploadRate, $downloadRate] = printVoucherRates($printVoucher);
+                ?>
+                    <div class="print-card">
+                        <div><?= htmlspecialchars(printDuration((int)($printVoucher['duration'] ?? 0), $printLanguage)) ?></div>
+                        <strong><?= htmlspecialchars($printCode) ?></strong>
+                        <div><?= $isFrench ? 'Débit descendant' : 'Download speed' ?>: <?= htmlspecialchars(printRateLabel($downloadRate, $printLanguage)) ?></div>
+                        <div><?= $isFrench ? 'Débit montant' : 'Upload speed' ?>: <?= htmlspecialchars(printRateLabel($uploadRate, $printLanguage)) ?></div>
+                        <div><?= $isFrench ? 'Limite de données' : 'Data limit' ?>: <?= htmlspecialchars(printDataLimit($printVoucher, null, $printLanguage)) ?></div>
+                       
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="table-wrap">
             <table>

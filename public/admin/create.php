@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 require __DIR__ . '/_auth.php';
+require_once __DIR__ . '/_print_helpers.php';
 
 use Portal\UniFiHelper;
 
@@ -8,6 +9,7 @@ $config  = require __DIR__ . '/../../config/sites.php';
 $siteKey = $_GET['site'] ?? $_POST['site'] ?? array_key_first($config['sites']);
 $helper = new UniFiHelper($config, $siteKey);
 $site    = $config['sites'][$siteKey];
+$printLanguage = $site['lang'] ?? 'fr';
 $error   = null;
 $created = [];
 
@@ -61,7 +63,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Créer vouchers</title>
     <link rel="stylesheet" href="../assets/style.css">
-  <link rel="stylesheet" href="../assets/admin.css">
+    <link rel="stylesheet" href="../assets/admin.css">
+    <style>
+      .voucher-print-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+      .voucher-print-card { border: 2px dashed #334155; border-radius: 8px; background: #fff; color: #111827; padding: 18px 8px; text-align: center; break-inside: avoid; }
+      .voucher-print-card strong { display: block; font-size: 1.25rem; margin: 12px 0; }
+      .voucher-print-card > div:first-child { color: #666; text-decoration: underline; }
+      @media print {
+        body { background: #fff !important; color: #111 !important; }
+        .no-print, .admin-card > h1, .admin-card > .subtitle, .admin-card > p, #createForm { display: none !important; }
+        .admin-card { box-shadow: none; background: #fff; }
+        .alert-ok { background: #fff; color: #111; }
+        .voucher-print-grid { grid-template-columns: repeat(4, 1fr); }
+      }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -83,25 +98,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $c = $v['code'] ?? '';
           if (strlen($c) === 10) $c = substr($c,0,5).'-'.substr($c,5);
         ?>
+          <?php
+            $createdVoucher = (array)$v;
+            if (!isset($createdVoucher['up']) && !empty($_POST['up'])) {
+                $createdVoucher['up'] = (int)$_POST['up'];
+            }
+            if (!isset($createdVoucher['down']) && !empty($_POST['down'])) {
+                $createdVoucher['down'] = (int)$_POST['down'];
+            }
+            [$uploadRate, $downloadRate] = printVoucherRates($createdVoucher);
+            $dataLimit = printDataLimit(
+                $createdVoucher,
+                !empty($_POST['megabytes']) ? (int)$_POST['megabytes'] : null,
+                $printLanguage
+            );
+            $isFrench = strtolower(substr($printLanguage, 0, 2)) === 'fr';
+          ?>
           <div class="voucher-print-card">
-            <div>Wi-Fi voucher</div>
+            <div><?= htmlspecialchars(printDuration((int)($_POST['minutes'] ?? 0), $printLanguage)) ?></div>
             <strong><?= htmlspecialchars($c) ?></strong>
-            <div>Validité : <?= (int)($_POST['minutes'] ?? 0) ?> min</div>
+            <div><?= $isFrench ? 'Débit descendant' : 'Download speed' ?>: <?= htmlspecialchars(printRateLabel($downloadRate, $printLanguage)) ?></div>
+            <div><?= $isFrench ? 'Débit montant' : 'Upload speed' ?>: <?= htmlspecialchars(printRateLabel($uploadRate, $printLanguage)) ?></div>
+            <div><?= $isFrench ? 'Limite de données' : 'Data limit' ?>: <?= htmlspecialchars($dataLimit) ?></div>
           </div>
-
-          <style>
-          .voucher-print-grid { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
-          .voucher-print-card { border: 2px dashed #334155; border-radius: 8px; background: #fff; color: #111827; padding: 18px 8px; text-align: center; break-inside: avoid; }
-          .voucher-print-card strong { display: block; font-size: 1.25rem; margin: 12px 0; }
-          @media print {
-            body { background: #fff !important; color: #111 !important; }
-            .no-print, .admin-card > h1, .admin-card > .subtitle, .admin-card > p, #createForm { display: none !important; }
-            .admin-card { box-shadow: none; background: #fff; }
-            .alert-ok { background: #fff; color: #111; }
-            .voucher-print-grid { grid-template-columns: repeat(4, 1fr); }
-            .voucher-print-card { break-inside: avoid; }
-          }
-          </style>
         <?php endforeach; ?>
       </div>
     </div>
